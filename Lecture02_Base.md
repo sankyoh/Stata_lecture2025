@@ -221,7 +221,7 @@ set more off
 
 * 4) プロジェクトルートの指定
 * 受講者PCのパスは環境で異なるため、ここだけ編集すれば良い設計にしている。
-global PROJ "C:\stata_course_project" // 例
+global PROJ "C:\Users\sanky\Dropbox\kougi学部・大学院講義\eki疫学統計分析演習2\FY2025\project" 
 
 * 5) よく使うフォルダをグローバルにしておく
 global RAW "$PROJ\data_raw"
@@ -234,10 +234,24 @@ di "=== Config loaded ==="
 di "Project root: $PROJ"
 ```
 
-### グローバル / ローカルの使い分け（この回の必須）
-Stataにおけるグルーバルマクロ / ローカルマクロとは何か？
+## 補足：Stataにおける「マクロ」とは何か
+Stataでいう **マクロ（macro）** とは、
+> **文字列に名前を付けて、一時的に保存・再利用する仕組み**
+のことです。
+
+難しく考える必要はなく、
+**「Stata用のメモ帳」や「置き換え用のラベル」** だと思ってください。
 - global：プロジェクト全体で共有したい（パス、定数）
 - local：そのdoファイル内だけで使いたい（共変量リスト、作業用の短期変数）
+
+グローバルマクロ（`global`コマンドで設定）は、「Stataを起動している間、どの do ファイルからでも参照できるマクロ」です。これを濫用すると後で困るので、最小限の利用にします。
+- プロジェクトのフォルダの位置
+- プロジェクト全体で共通の設定
+
+ローカルマクロ（`local`コマンドで設定）は、「その do ファイル（あるいはプログラム）の中だけで使える一時的なマクロ」です。
+- 回帰モデルの共変量リスト
+- foreach / forvalues の制御変数
+- 一時的な作業用の名前
 
 今回のルール：
 - パスは globalマクロで指定する（例：global RAW）
@@ -278,15 +292,19 @@ Sanity check とは、「そのデータが常識的におかしくないか」�
 ****************************************************
 * 01_import.do
 * 役割：CSVを読み込み、dtaファイルとして保存
+* csv -> df00.dta
 ****************************************************
 
-* 1) 生データの場所（例：Zenodoから落として data_raw に置いた想定）
-local in_file "$RAW\cvd_synthetic_dataset_v0.2.csv"
-local out_file "$RAW\df00.dta"
+* 0) ログを取る
+cap log close
+log using "$LOG\log_01_import.smcl", replace
 
-* 2) import delimited（TSVなので delimiter(tab) を明示）
-import delimited using "`in_file'", delimiter(tab) varnames(1) clear
+* 1) 読込みデータファイルと書出しデータファイル
+local read_file  "$RAW\cvd_synthetic_dataset_v0.2.csv"
+local write_file "$RAW\df00.dta"
 
+* 2) import delimited（CSV）
+import delimited using "`read_file'", delimiter(",") varnames(1) clear
 
 * 3) Sanity Check Lv1
 // 目的：データが壊れていないか確認する
@@ -301,17 +319,26 @@ count if missing(patient_id)
 * patient_id の重複
 duplicates report patient_id 
 
-* 明らかにおかしい値が「見えてしまう」か確認
-summarize age body_mass_index systolic_blood_pressure ///
+* 連続変数について簡単に確認
+su age body_mass_index systolic_blood_pressure ///
     time_to_event_or_censoring
+	
+* bool変数（二値変数）について簡単に確認
+su smoker hypertension_treated family_history_of_cardiovascular atrial_fibrillation ///
+	chronic_kidney_disease rheumatoid_arthritis diabetes chronic_obstructive_pulmonary_di ///
+	heart_attack_or_stroke_occurred
 
-* ここでは直さない。判断もしない。
+* ここでは直さない。一旦、見るだけ。
 di "Sanity Check Lv1 completed (no modification applied)"
 
-* 4) raw保存（ここではまだ整形しない）
-save "`out_file'", replace
+* 4) raw保存
+compress
+label data "RAW data"
+save "`write_file'", replace
 
 di "=== Import done: saved `out_file' ==="
+
+log close
 ```
 
 # 3. データクリーニング
@@ -319,164 +346,231 @@ di "=== Import done: saved `out_file' ==="
 ここが第2回の主役です。
 以後の回で、回帰もPSも生存解析もやりますが、**それらが正しく動くかどうかはここで決まります**。
 
-この回でやるのは、次の5つです。
+この回でやるのは、次の6つです。
 
 1. `patient_id` の一意性に問題があれば修正。
-2. bool変数（二値変数）に0/1以外があれば、その対応。
-3. `gender` が文字列なので、0/1（またはラベル付きカテゴリ）に整形。
-4. 欠損を「把握」する（補完は第5回）
-5. 変数ラベル・値ラベルを付ける（読めるデータにする）
+2. `gender` が文字列なので、0/1（ラベル付きカテゴリ）に整形。
+3. bool変数（二値変数）に0/1以外があれば、その対応。
+4. 異常値があれば、それを「把握」する。
+5. 欠損を「把握」する。
+6. 変数ラベル・値ラベルを付ける。
+
+- 他のデータセットを触るときでも、1から5については、ここで示しているサンプルコードを少し手を加えることで対応可能です。
+- 6については、データセット毎に一から作り直す必要がありますが、変数表があれば、それをLLM(ChatGPTなど)に読み込ませて、Stataのコードを作らせると良いです。
 
 ---
-## 3.1 02_clean.do（サンプル）
+## 3.1 02_clean.do
 ``` stata
 ****************************************************
 * 02_clean.do
 * 役割：分析可能なデータセットに整形して保存
+* * df00.dta -> df01_clean.dta
 ****************************************************
 
-use "${RAW}\cardio_raw.dta", clear
+* 0) ログを取る
+cap log close
+log using "$LOG\log_02_clean.smcl", replace
+
+* 1) 読込みデータファイルと書出しデータファイル
+local read_file  "$RAW\df00.dta"
+local write_file "$CLEAN\df01_clean.dta"
+
+use "`read_file'", clear
 
 ****************************************************
-* 0) IDチェック（最重要）
+* 0) IDチェック
 ****************************************************
 
 * patient_id が欠損していないか
+// もし欠損があるなら、ここで止る
 count if missing(patient_id)
-* もし欠損があるなら、ここで止める方針もあり得る
-* （今回は合成データで通常はない想定）
+assert patient_id!=""
 
 * patient_id が一意か（重複があると以後の解析が崩壊する）
-capture noisily isid patient_id
-if _rc != 0 {
-    di as error "ERROR: patient_id is not unique. Please check duplicates."
-    duplicates report patient_id
-    exit 459
-}
+// idの重複があれば、ここで止る
+isid patient_id
 
 ****************************************************
-* 1) 文字列のトリム（意外と重要）
+* 1) 文字列のトリム
 ****************************************************
-* TSV由来で余計な空白が混ざることがあるため、先に除去しておく
+* CSV由来で余計な空白が混ざることがあるため、先に除去しておく
+// "F"の代わりに" F"となっていても、人間の眼ではわからないので、機械的に変換する。
 foreach v in gender {
-    replace `v' = strtrim(`v') if !missing(`v')
+	replace `v' = strtrim(`v') if !missing(`v')
 }
 
 ****************************************************
 * 2) gender の整形
 ****************************************************
 * 方針：M/F を 0/1 に変換し、ラベルを付与する
-gen byte female = .
-replace female = 1 if gender == "F"
-replace female = 0 if gender == "M"
+gen byte tmp_gender = ., after(gender)
+replace tmp_gender = 1 if gender == "F"
+replace tmp_gender = 0 if gender == "M"
 
-label define L_female 0 "Male" 1 "Female"
-label values female L_female
-label variable female "Female (1) vs Male (0)"
+// 元変数との一致を確認する
+tab tmp_gender gender
+drop gender
+rename tmp_gender gender
 
-* 元のgenderは残してもよいが、分析では female を使う前提にする
-label variable gender "Gender (raw: M/F)"
+label define gender 0 "Male" 1 "Female", replace
+label values gender gender
+label variable gender "gender"
+
 
 ****************************************************
-* 3) bool → 0/1 変換
+* 3) 長い変数名を短くし、ラベルを付けた
+* Powered by ChatGPTで、一部は修正
+* https://chatgpt.com/share/69779aa2-14f4-8006-a515-10e16a36f4e3
 ****************************************************
-* 合成データの bool は、"true"/"false" の文字列として入ることがある
-* ここでは「文字列なら文字列として処理」「既に数値ならそのまま」を想定して安全に書く
+rename body_mass_index                          bmi
+rename smoker                                   smk
+rename systolic_blood_pressure                  sbp
+rename hypertension_treated                     htn_tx
+rename family_history_of_cardiovascular         fhx_cvd
+rename atrial_fibrillation                      af
+rename chronic_kidney_disease                   ckd
+rename rheumatoid_arthritis                     ra
+rename diabetes                                 dm
+rename chronic_obstructive_pulmonary_di         copd
+rename forced_expiratory_volume_1               fev1
+rename time_to_event_or_censoring               cv_time   // 生存時間で使う「時間」と
+rename heart_attack_or_stroke_occurred          cv_event  // 生存時間で使う「イベント」の名前を揃えておくと後で便利
 
+* --- variable labels (use original long names as labels) ---
+label variable patient_id "patient_id"
+label variable gender "gender"
+label variable age "age"
+label variable bmi "body_mass_index"
+label variable smk "smoker"
+label variable sbp "systolic_blood_pressure"
+label variable htn_tx "hypertension_treated"
+label variable fhx_cvd "family_history_of_cardiovascular_disease"
+label variable af "atrial_fibrillation"
+label variable ckd "chronic_kidney_disease"
+label variable ra "rheumatoid_arthritis"
+label variable dm "diabetes"
+label variable copd "chronic_obstructive_pulmonary_disorder"
+label variable fev1 "forced_expiratory_volume_1"
+label variable cv_time "time_to_event_or_censoring"
+label variable cv_event "heart_attack_or_stroke_occurred"
+
+****************************************************
+* 4) bool変数のラベル
+****************************************************
 local boolvars ///
-    smoker hypertension_treated family_history_of_cardiovascular_disease ///
-    atrial_fibrillation chronic_kidney_disease rheumatoid_arthritis ///
-    diabetes chronic_obstructive_pulmonary_disorder ///
-    heart_attack_or_stroke_occurred
+	smk htn_tx fhx_cvd af ckd ra dm copd cv_event
 
 foreach v of local boolvars {
-
-    * 変数型の確認：文字列なら変換、数値なら確認のみ
-    capture confirm string variable `v'
-    if _rc == 0 {
-        * 文字列の場合：true/false を 1/0 に
-        gen byte `v'_bin = .
-        replace `v'_bin = 1 if lower(`v') == "true"
-        replace `v'_bin = 0 if lower(`v') == "false"
-
-        * 変換後の欠損が多いなら、想定外の値がある可能性
-        count if missing(`v'_bin) & !missing(`v')
-        if r(N) > 0 {
-            di as error "WARNING: unexpected values in `v' (raw). Check!"
-            tab `v', missing
-        }
-
-        drop `v'
-        rename `v'_bin `v'
-    }
-    else {
-        * 数値の場合：0/1かどうかをざっくり確認
-        tab `v', missing
-    }
-
-    * 値ラベル付け（0/1）
-    label define L01 0 "No/False" 1 "Yes/True", replace
-    label values `v' L01
+	* 値ラベル付け（0/1）
+	label define ny 0 "No" 1 "Yes", replace
+	label values `v' ny
 }
 
 ****************************************************
-* 4) 連続変数の型・単位の確認
+* 5)　Sanity Check Lv2: 分析前チェック
 ****************************************************
-* ここでは “解析” はしないが、異常値や型は早めに気づく
-describe age body_mass_index systolic_blood_pressure forced_expiratory_volume_1 ///
-    time_to_event_or_censoring
+* 変数型の確認
+des
 
-summarize age body_mass_index systolic_blood_pressure forced_expiratory_volume_1 ///
-    time_to_event_or_censoring, detail
+* 二値変数が0/1であることの確認。それ以外の時は止る。
+su `boolvars' 
+foreach v of local boolvars {
+	* 値ラベル付け（0/1）
+	assert `v'==0 | `v'==1
+}
 
-* 例：BMIが負の値など、明らかな異常値があればフラグを立てる（今回は合成なので通常ない想定）
-gen byte bmi_outlier = (body_mass_index < 10 | body_mass_index > 60) if !missing(body_mass_index)
-label variable bmi_outlier "BMI outlier flag (10-60 outside)"
+* 性別も0/1であることの確認。それ以外の時は止る。
+assert gender==0 | gender==1
+
+* 年齢： 許容範囲 18-120
+gen byte age_outlier = (age < 18 | age > 120) if !missing(age)
+label variable age_outlier "Age out of plausible range (18-120)"
+tab age_outlier, missing
+su age if age_outlier == 1
+
+* BMI： 許容範囲 10-60
+gen byte bmi_outlier = (bmi < 10 | bmi > 60) if !missing(bmi)
+label variable bmi_outlier "BMI out of plausible range (10-60)"
 tab bmi_outlier, missing
+su bmi if bmi_outlier==1
+
+* 収縮期血圧： 許容範囲 50-300
+gen byte sbp_outlier = (sbp < 50 | sbp > 300) if !missing(sbp)
+label variable sbp_outlier "SBP out of plausible range (50-300)"
+tab sbp_outlier, missing
+su sbp if sbp_outlier==1
+
+* 追跡時間： 非負
+gen byte cv_time_outlier = (cv_time < 0) if !missing(cv_time)
+label variable cv_time_outlier "Negative follow-up time"
+tab cv_time_outlier, missing
+su cv_time if cv_time_outlier==1
 
 ****************************************************
-* 5) 欠損の把握（補完は第5回）
+* 6) 欠損の把握
 ****************************************************
-* 第4回で回帰をするときに「Stataが勝手に欠損行を落とす」ことを見せるため、
-* 欠損を “消さずに” ここでは把握だけする
-
-misstable summarize age body_mass_index systolic_blood_pressure forced_expiratory_volume_1 ///
-    smoker diabetes hypertension_treated heart_attack_or_stroke_occurred ///
-    time_to_event_or_censoring
+* ここでは一旦、欠損への対応はせずに、把握だけする
+misstable summarize 
 
 ****************************************************
-* 6) 変数ラベル（読みやすさは再現性）
+* 7) 保存
 ****************************************************
-label variable patient_id "Patient identifier"
-
-label variable age "Age (years)"
-label variable body_mass_index "Body mass index (kg/m^2)"
-label variable systolic_blood_pressure "Systolic blood pressure (mmHg)"
-label variable forced_expiratory_volume_1 "FEV1 (% predicted)"
-label variable time_to_event_or_censoring "Time to event or censoring (years)"
-
-label variable hypertension_treated "On hypertension treatment (binary)"
-label variable family_history_of_cardiovascular_disease "Family history of CVD (binary)"
-label variable atrial_fibrillation "Atrial fibrillation (binary)"
-label variable chronic_kidney_disease "Chronic kidney disease (binary)"
-label variable rheumatoid_arthritis "Rheumatoid arthritis (binary)"
-label variable diabetes "Diabetes (binary)"
-label variable chronic_obstructive_pulmonary_disorder "COPD (binary)"
-label variable smoker "Smoker (binary)"
-label variable heart_attack_or_stroke_occurred "Heart attack or stroke occurred (binary)"
-
-****************************************************
-* 7) 最終チェック＆保存
-****************************************************
-
-* 最後に型と分布を確認
-codebook patient_id female age body_mass_index systolic_blood_pressure ///
-    smoker diabetes hypertension_treated time_to_event_or_censoring ///
-    heart_attack_or_stroke_occurred
+* 最終チェック
+codebook 
 
 compress
-
-save "${CLEAN}\cardio_clean.dta", replace
+label data "Cleaning済"
+save "`write_file'", replace
 
 di "=== Clean done: saved cardio_clean.dta ==="
+
+cap log close
 ```
+
+## 3.2 第2回で強調する「作法」
+
+### (A) 生データは上書きしない
+* `data_raw`フォルダは保護区・聖域・禁漁区なので、このデータには触らないようにします。
+* 編集は `data_clean` に作って保存して、利用します。
+
+### (B) 変数の意味が伝わるようにする（ラベル）
+* 共同研究で効いてくるのは、変数名よりラベルです。
+* `label variable` と `label define/values` を必ず入れてください。
+
+### (C) 欠損値は「この回では直さない」
+* 欠損を直したくなるのが人情ですが、ここでは一旦おいておきます。
+* 後の回（第4回を予定）で回帰をやる際に「欠損があるとNが減る」を体験するため、欠損は残します。
+* 欠損への対応は、第5回（オンデマンド）などで扱います
+
+### (D) 「安全に書く」習慣
+`02_clean.do`では、ところどころで「止る」ための`assert`コマンドを入れています。
+また、外れ値のフラグも作成しました。これらに注目することで、後の解析で「安全に」解析を進めることができます。
+
+---
+# 4. この回の小課題
+「doを分割する理由」を体感できるように、下記が出来るようにして下さい。
+
+## 課題1：フォルダ構成を作る
+* `data_raw`, `data_clean`, `do`, `log` を`project`フォルダに作成して下さい。
+* `00_config.do` の `global PROJ` を自分のPCに合わせて修正してください。
+
+## 課題2：master.do を回して `cardio_clean.dta` を生成
+* `master.do`を実行し、クリーニングしたデータセットが`data_clean`フォルダに出力されることを確認して下さい。
+* `master.do`を実行し、ログが `log`フォルダに出力されることを確認してください。
+
+## 課題3：変数が正しいかチェック
+* logを確認し、genderが正しく変換できていることを確認して下さい。
+* どの変数に欠損値がどのくらいあるのか、確認して下さい。
+* どの変数に外れ値があるのか、確認して下さい。
+
+# 5. まとめ（第2回の位置づけ）
+
+第2回で作った`df01_clean.dta` は、次回以降で使います。
+つまり、第2回は「すべての回の土台」です。
+
+* doを分割する理由は「きれいに見せるため」ではなく、**事故を防ぎ再現性を担保するため**
+* データクリーニングは、単なる整形ではなく「意味を固定する作業」
+
+次回（第3回）では、この `df01_clean.dta` を使って記述統計（Table 1）を作ります。
+推測統計・解析へ進む前に、データを正しく語れる状態にしていきます。
+
