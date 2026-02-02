@@ -221,6 +221,8 @@ set more off
 
 * 4) プロジェクトルートの指定
 * 受講者PCのパスは環境で異なるため、ここだけ編集すれば良い設計にしている。
+* Windows環境を想定してドライブレター"C:"から始めています。
+* Mac（正確には Unix系）では、Windowsみたいな ドライブレター（C: など）は基本出てきません。代わりに、パス（ファイルの住所）は 「/」から始まる階層構造で表します。
 global PROJ "C:\Users\sanky\Dropbox\kougi学部・大学院講義\eki疫学統計分析演習2\FY2025\project" 
 
 * 5) よく使うフォルダをグローバルにしておく
@@ -232,6 +234,27 @@ global OUT "$PROJ\output"
 
 di "=== Config loaded ==="
 di "Project root: $PROJ"
+```
+
+## 00_config.doで設定した内容を確認する
+フォルダ（ディレクトリ）のパスについては、OS依存であるため、設定がうまくできているかどうかを確認します。
+
+```
+* 環境のチェック
+display "OS: " c(os)
+display "PWD: " c(pwd)
+
+* 00_config.doで設定したglobal macroの中身を確認する
+macro list PROJ RAW CLEAN DO LOG OUT
+
+* doフォルダの確認
+display "$DO"
+dir "$DO/"
+
+* スラッシュとバックスラッシュ
+confirm file "$DO/01_import.do"
+confirm file "$DO\01_import.do"
+
 ```
 
 ## 補足：Stataにおける「マクロ」とは何か
