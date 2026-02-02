@@ -533,7 +533,14 @@ su cv_time if cv_time_outlier==1
 * 6) 欠損の把握
 ****************************************************
 * ここでは一旦、欠損への対応はせずに、把握だけする
-misstable summarize 
+misstable summarize
+
+* 欠損フラグの作成
+foreach v in bmi sbp fev1 cv_time {
+    gen byte miss_`v' = missing(`v')         // 1 if missing
+    label values miss_`v' miss01
+    label variable miss_`v' "`v' missingness"
+}
 
 ****************************************************
 * 7) 保存
