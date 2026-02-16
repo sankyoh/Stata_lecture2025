@@ -162,23 +162,19 @@ misstable summarize bmi sbp fev1
 * dtable は Stata 17+ の機能。Table 1 を一気に作るのに便利。
 * このコースでは連続変数について「平均±SDのパターン」と「中央値[IQR]のパターン」を両方作る。
 
-
-****************************************************
-* 4A) 平均±SD 版（欠損数も表示）
-****************************************************
-* iqr_vars = dtableで利用する：記述統計の表でIQRを示す変数を示すローカルマクロ
-local iqr_vars // 空白にしている（つまり、全部の連続変数を平均と標準偏差で示す）
+local sd_vars  age bmi sbp cv_time // これらは平均値（標準偏差）で表示する
+local iqr_vars fev1                // fev1は中央値（第1四分位, 第3四分位）で表示する
 
 dtable `des_vars', ///
 		by(`expv', nototals notests missing) ///
-		column(by(hide)) /// 
+		column(by(label)) /// 
 		sample(, place(seplabels)) ///
 		///
 		define(iqi = q1 q3, delimiter(", ")) ///
 		sformat("[%s]" iqi) /// 
 		///	
 		nformat(%16.2fc mean sd q1 q2 q3) ///
-		continuous(, test(regress)) ///
+		continuous(`sd_vars',  statistics(mean sd) test(regress)) ///
 		continuous(`iqr_vars', statistic(q2 iqi)) ///
 		factor(,test(pearson)) ///
 		///
@@ -186,36 +182,7 @@ dtable `des_vars', ///
 		note(Median[IQR]) ///
 		///
 		export("`write_file1'", as(xlsx) replace)
-
-****************************************************
-* 4B) 中央値[IQR] 版（欠損数も表示）
-****************************************************
-* iqr_vars = dtableで利用する：記述統計の表でIQRを示す変数を示すローカルマクロ
-local iqr_vars age bmi sbp fev1 cv_time // 連続変数を全部指定している（つまり、全部の連続変数を中央値とIQRで示す）
-
-dtable `des_vars', ///
-		by(`expv', nototals notests missing) ///
-		column(by(hide)) /// 
-		sample(, place(seplabels)) ///
-		///
-		define(iqi = q1 q3, delimiter(", ")) ///
-		sformat("[%s]" iqi) /// 
-		///	
-		nformat(%16.2fc mean sd q1 q2 q3) ///
-		continuous(, test(regress)) ///
-		continuous(`iqr_vars', statistic(q2 iqi)) ///
-		factor(,test(pearson)) ///
-		///
-		note(Mean(SD) or N(%)) ///
-		note(Median[IQR]) ///
-		///
-		export("`write_file2'", as(xlsx) replace) ///
-
-di "=== Table 1 exported to: `write_file1' and `write_file2' ==="
-
-log close
-````
-
+```
 ---
 
 # 4. Table 1 の読み方（講義用の文章）
@@ -263,7 +230,7 @@ Table 1 は、研究の「登場人物紹介」です。
 
 ---
 
-# 5. 欠損の扱い（第5回への伏線）
+# 5. 欠損の扱い
 
 今回のデータでは `bmi`, `sbp`, `fev1` に欠損があります。
 第3回では **欠損を直しません**。理由は2つです。
