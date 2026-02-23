@@ -13,6 +13,12 @@ Lecture03では、`dtable`に沢山のオプションを付けて、自分用の
 …これで地味に時間を削られます。  
 そこで **「カスタムコマンド化（ado化）」**すると、最初だけ少し面倒でも、その後はずっと楽になります。
 
+### ここで利用するコード(.adoファイル、.doファイル）
+- make_table1.ado
+- 03_table1suppl.do
+今回利用する`make_table1.ado`ファイルは、Githubにアップロードしていますので、ダウンロードして利用してください。
+あるいは、下記にあるコードブロックをコピーして新たにmake_table1.adoファイルを作って下さい。
+
 ---
 
 ## 今日のゴール 🎯
@@ -318,7 +324,121 @@ Stataの公式コマンドや他の人がつくっている外部コマンドも
 残ったsyntaxコマンドの部分を確認します。
 
 
-## 4.3 syntaxコマンド
+## 4.3 syntaxコマンドを確認する（わからなければ、一旦読み飛ばしてもOK）
+
+ado ファイルの `syntax` は、**ユーザーがコマンドで渡した引数・オプションを受け取り、型チェックしてローカルマクロに格納する**仕組みです。  
+つまり `syntax` ＝「この自作コマンドの使い方の文法を定義する」部分です。
+
+### 今回の`syntax` 行
+
+~~~stata
+syntax varlist(fv) [if] [in] [fweight aweight pweight iweight], ///
+    BY(name) ///
+    SDVARS(varlist numeric) ///
+    [ IQRVARS(varlist numeric) ] ///
+    WRITEFILE(string asis)
+~~~
+
+#### `varlist(fv)`
+- コマンドの最初に並べる変数リストを受け取ります。
+- `(fv)` により **`i.` などの因子変数表記を許可**します（例：`i.dm i.smk`）。
+
+例：
+~~~stata
+make_table1 age bmi i.dm i.smk, by(cv_event) sdvars(age bmi) writefile("t1.xlsx")
+~~~
+
+この例では、ローカルマクロ`varlist`が`age bmi i.dm i.smk`を受取ります。
+つまり、`local varlist = "age bmi i.dm i.smk"`というコマンドと同じことが起ります。
+
+
+### `[if] [in]`（省略可能）
+- syntaxコマンドにこれがあると、いつものStataコマンドと同じく条件・範囲指定ができます。
+- syntaxコマンドの記載で、大括弧[]を使っている場合は、make_table1を使うときに省略可能ということを意味しています。
+
+例：
+~~~stata
+make_table1 age bmi i.dm if age>=40, by(cv_event) sdvars(age bmi) writefile("t1.xlsx")
+~~~
+
+この例では、ローカルマクロ`if`が、`if age>=40`を受取ります。
+つまり、`local if = "if age>=40"`というコマンドと同じことが起ります。
+
+### `[fweight aweight pweight iweight]`（省略可能）
+- 重みを受け取れます（例：`[pweight=sw]`）。
+
+例：
+~~~stata
+make_table1 age bmi i.dm [pweight=sw], by(cv_event) sdvars(age bmi) writefile("t1.xlsx")
+~~~
+
+`syntax` 実行後、内部で `` `weight' ``（種類）と `` `exp' ``（=sw など）が使えるようになります。
+
+この例では、ローカルマクロ`weight`が、`pweight`を受取り、ローカルマクロ`exp`が`sw`を受取ります。
+つまり、`local weight = "pweight"`、`local exp="sw"`というコマンドと同じことが起ります。
+
+### `BY(name)`（省略不可）
+- `by()` は必須。
+- `name` なので **変数名1個だけ**を受け取ります。
+- BYが大文字ですが、これはbyという記述は省略不可能ということを意味しています。
+- もし、Byであれば、byまたはbでよいという意味になります。
+
+✅ `by(dm)` / `by(cv_event)`  
+❌ `by(dm==1)`（式なので不可）
+
+### `SDVARS(varlist numeric)`（省略不可）
+- 平均±SDで出す **連続変数のリスト**。
+- `numeric` なので **数値変数のみ**。
+
+✅ `sdvars(age bmi sbp)`  
+❌ `sdvars(i.dm)`（因子表記）/ `sdvars(gender)`（文字列なら不可）
+
+### `[IQRVARS(varlist numeric)]`（省略可能）
+- 中央値[IQR]で出す連続変数リスト（数値のみ）。
+- 指定がなければ空でOK。
+
+### `WRITEFILE(string asis)`（省略不可）
+- 出力ファイル名（パスも可）。
+- `asis` により、引用符付きの文字列（空白を含むパスなど）を壊しにくくします。
+
+---
+
+## `syntax` 後に何が手に入る？（ローカルマクロ）
+
+`syntax` を通ると、主に次のローカルマクロが用意されます。
+
+- `` `varlist' ``：表に出す変数（`i.` を含む）
+- `` `by' ``：層別変数
+- `` `sdvars' ``：平均±SDの連続変数
+- `` `iqrvars' ``：中央値[IQR]の連続変数（任意）
+- `` `writefile' ``：出力先
+- `` `if' `` `` `in' ``：条件・範囲（任意）
+- `` `weight' `` `` `exp' ``：重み（任意）
+
+この材料を使って、ado 内で長い `dtable` を組み立てています。
+
+---
+
+## `marksample touse` との関係
+
+`syntax` の次にある：
+
+~~~stata
+marksample touse, strok
+~~~
+
+は、`if/in` を反映した **解析対象フラグ（touse）**を作る定番です。  
+最終的に `dtable ... if \`touse' ...` とすることで、条件指定を確実に適用します。
+
+---
+
+## まとめ
+
+- `syntax` は **自作コマンドの仕様書＋入力チェック装置**
+- `varlist(fv)` で `i.` を許可
+- `by()` / `sdvars()` / `writefile()` は必須
+- `if/in/weight` は任意
+- `syntax` の結果はローカルマクロに入り、以後の `dtable`をはじめとしたコマンドの組み立てに使われる
 
 ---
 
@@ -335,6 +455,9 @@ sysdir
 例（出力イメージ）：
 
 - PERSONAL: `C:\Users\...\ado\personal\`
+- 
+<img width="744" height="266" alt="image" src="https://github.com/user-attachments/assets/1691aaab-14a9-4b38-bae4-f74828cfb247" />
+
 
 > 注意：環境によって場所は違います。  
 > **出力された PERSONAL のパス**が正解です。
@@ -346,9 +469,9 @@ Stata の慣習として、PERSONAL の下に **コマンドの先頭1文字フ�
 
 に入れると整理しやすいです（後で増えても迷子になりにくい）。
 
-## 5.3 実際に置く（やり方2通り）
+## 5.3 実際に置く
 
-### 方法A：エクスプローラーで作業（おすすめ）
+### 方法A：エクスプローラーで作業
 1. `sysdir` で出た PERSONAL のフォルダを開く
 2. `m` フォルダを作る（なければ新規作成）
 3. その中に `make_table1.ado` をコピーする
@@ -366,72 +489,117 @@ Stata の慣習として、PERSONAL の下に **コマンドの先頭1文字フ�
 copy "C:\path\to\make_table1.ado" "C:\path\to\PERSONAL\m\make_table1.ado", replace
 ~~~
 
-> PERSONAL のパスが長い場合は、`sysdir` の結果をコピペして使うのが安全です。
+PERSONAL のパスが長い場合は、`sysdir` の結果をコピペして使うのが安全です。
 
 ---
 
-# 6. 置けたか確認する（必須チェック）
+# 6. 置けたか確認する
 
-## 6.1 `which` で Stata が見つけられるか確認
+## 6.1 `which` で Stata が見つけられるか確認うる。
+
+Stataの`which`コマンドは、adoファイルの置かれている場所を表示するためのコマンドです。作成したmake_table1.adoが
+
 ~~~stata
 which make_table1
 ~~~
 
-期待するのは、「PERSONAL\m\make_table1.ado を見ている」ことです。  
+<img width="694" height="164" alt="image" src="https://github.com/user-attachments/assets/b58e241d-1cf2-44ad-ae83-55f280dfc4f7" />
+
+何事もなければ、上記の様な出力になります。
+
+期待するのは、Stataが「PERSONAL\m\make_table1.ado を見ている」ことです。  
 もし違う場所（古い版）を指していたら、検索パスに別の `make_table1.ado` がある可能性があります。
 
 ---
 
 # 7. 実際に使う：`make_table1` の基本形
 
-## 7.1 基本の呼び出し（重みなし）
+## 7.1 基本の呼び出し（解析用の重みなし）
 
-ポイントは2つだけです。
+今回、用意した`make_table1`コマンドは、次の引数が必要です。
+- 記述統計量を算出する変数：
+- - 連続変数：そのまま書く（例：`age bmi sbp fev1 cv_time`）
+- - カテゴリ変数：`i.` を付ける（例：`i.smk i.htn_tx ...`）
+- 連続変数のうち平均・標準偏差で表示するもの
+- 連続変数のうち中央値・四分位で表示するもの（省略可能）
+- 層別するための曝露変数
+- 出力するためのExcelファイル名
 
-- 連続変数：そのまま書く（例：`age bmi sbp fev1 cv_time`）
-- カテゴリ変数：`i.` を付ける（例：`i.smk i.htn_tx ...`）
-
-例：`dm` で層別して Table 1 を作る（仮説の導入に便利）
+例：Lecture03で作成したdoファイルに改変版；`dm` で層別して Table 1 を作る（）
 
 ~~~stata
-* 例：Table 1（dm で層別）
-* - sdvars(): 平均±SD で出したい連続
-* - iqrvars(): 中央値[IQR] で出したい連続（任意）
-* - writefile(): 出力xlsx（拡張子は省略可：自動で .xlsx が付く）
+****************************************************
+* 03_table1suppl.do
+* 役割：記述統計の確認と Table 1 作成（Excel出力）
+* データ：data_clean\cardio_clean.dta を前提
+****************************************************
+
+****************************************************
+* 0) 準備
+****************************************************
+cap log close
+log using "$LOG/log_03_tale1suppl.smcl", replace
+di "=== Session 3: Table 1 ==="
+
+* 読込みデータファイルと書出しデータファイル
+local read_file  "$CLEAN/df01_clean.dta"
+local write_file "$OUT/table1suppl.xlsx"
+
+
+* 変数の定義
+local expv dm
+
+* des_vars = dtableで利用する：記述統計量で示す変数リスト（i.もつける）
+local des_vars ///
+	age bmi sbp fev1 cv_time ///
+	i.smk i.htn_tx i.fhx_cvd i.af i.ckd i.ra i.copd i.cv_event ///
+	i.age_outlier i.bmi_outlier i.sbp_outlier i.cv_time_outlier ///
+	i.miss_bmi i.miss_sbp i.miss_fev1 i.miss_cv_time
+
+use "`read_file'", clear
+
+****************************************************
+* 1) 記述統計（連続変数）
+****************************************************
+* 記述統計量を確認する
+su age bmi sbp fev1 cv_time, detail
+
+****************************************************
+* 2) カテゴリ変数
+****************************************************
+* 二値変数の分布を確認する
+foreach v in cv_event dm smk htn_tx fhx_cvd af ckd ra copd {
+    tab `v', missing
+}
+
+****************************************************
+* 3) 欠損の可視化
+****************************************************
+misstable summarize bmi sbp fev1
+
+****************************************************
+* 4) Table 1 を作る（make_table1）
+*    FEV1のみ中央値表示にする。
+****************************************************
+local sd_vars  age bmi sbp cv_time // これらは平均値（標準偏差）で表示する
+local iqr_vars fev1                // fev1は中央値（第1四分位, 第3四分位）で表示する
 
 make_table1 ///
-    age bmi sbp fev1 cv_time ///
-    i.gender ///
-    i.smk i.htn_tx i.fhx_cvd i.af i.ckd i.ra i.copd ///
-    i.cv_event ///
-    i.age_outlier i.bmi_outlier i.sbp_outlier i.cv_time_outlier ///
-    , by(dm) ///
-      sdvars(age bmi sbp fev1) ///
-      iqrvars(cv_time) ///
-      writefile("${OUT}\Table1_by_dm")
+	`des_vars', by(`expv') sdvars(`sd_vars') iqrvars(`iqr_vars') ///
+	writefile(`write_file')
+
+di "=== Table 1 exported to: `write_file1' and `write_file' ==="
+
+log close
 ~~~
 
-## 7.2 `cv_event` で層別して Table 1（イベント有無で比較）
-~~~stata
-make_table1 ///
-    age bmi sbp fev1 cv_time ///
-    i.gender ///
-    i.smk i.htn_tx i.fhx_cvd i.af i.ckd i.ra i.copd ///
-    i.dm ///
-    i.age_outlier i.bmi_outlier i.sbp_outlier i.cv_time_outlier ///
-    , by(cv_event) ///
-      sdvars(age bmi sbp fev1) ///
-      iqrvars(cv_time) ///
-      writefile("${OUT}\Table1_by_event")
-~~~
-
-> コツ：`by()` に入れる変数は、通常は varlist 側に入れません（重複して見づらくなるため）。
+4)の工程でカスタムしたコマンド`make_table1`を利用しています。
 
 ---
 
 # 8. 応用：重み付き（weight）で Table 1 を作る
 
-`make_table1.ado` は `[pweight=] [aweight=] [fweight=] [iweight=]` を受け取ります。  
+`make_table1.ado` は `[pweight=] [aweight=] [fweight=] [iweight=]` を受け取るように設計しています。
 重みが指定されると、内部で安全チェックが動きます：
 
 - 解析対象内で重みが欠損 → エラーで停止
@@ -439,22 +607,27 @@ make_table1 ///
 - 重み付きのときは度数が非整数になり得るので、表示フォーマットも調整
 
 例（pweight の例）：
+ただ、現段階ではswという変数は作成していないので、下記のコードは動きません。
 
 ~~~stata
 * 例：pweight=sw を使う（sw は各自のデータに合わせて）
 make_table1 ///
     age bmi sbp fev1 cv_time ///
     i.gender i.smk i.htn_tx i.dm ///
+	[pweight=sw] ///
     , by(cv_event) ///
       sdvars(age bmi sbp fev1) ///
       iqrvars(cv_time) ///
-      writefile("${OUT}\Table1_weighted") ///
-      [pweight=sw]
+      writefile("`write_file'") ///
 ~~~
 
 ---
 
 # 9. ありがちなエラーと対処（make_table1 が親切に止めてくれるやつ）
+
+エラー処理が多くあるという説明をしました。現時点では下記の様なエラーチェックによる処理があります。
+make_table1.ado内のdtableコマンドでエラーが出ると「なんでエラーになった？」ということが分かり難いので、事前にエラーになるような状況を表示するように自作コードを入れています。
+（自分で、対処できるならエラー処理は必須ではないのですが、問題が起きる度に謎を解く必要があるので、予め入れておくと役に立ちます）
 
 ## 9.1 `sdvars()` と `iqrvars()` の重複
 - 同じ変数を両方に入れるとエラーになります  
@@ -474,7 +647,7 @@ make_table1 ///
 
 ---
 
-# 10. まとめ：今後ずっと効く “投資” 💪
+# 10. まとめ：今後ずっと効く「投資」になる
 
 この番外編でやったことは、ただの小技ではなく、
 
@@ -487,14 +660,14 @@ make_table1 ///
 一度 PERSONAL に入れてしまえば、次からは：
 
 - `make_table1 ...` で一発
-- 表の体裁も統一
+- 常に表の体裁も統一
 - 修正もadoだけ直せばOK
 
 になります。
 
-> ここから先の講義（回帰、PS、サバイバル）でも  
+> ここから先の講義でも  
 > 「コマンド化できる部分はコマンド化する」発想が使えます。
 
-（おまけ）余力があれば、`make_table1.sthlp` を作って `help make_table1` を出せるようにすると、さらに“自分専用パッケージ感”が出て気持ちいいです 😎
+余力があれば、`make_table1.sthlp` を作って `help make_table1` を出せるようにすると、さらに自分専用パッケージ感が出てきます。
 
 [^1]: DRY原則（Don't Repeat Yourself）は、「同じ知識や情報を、複数の場所に重複して持たせない」という、ソフトウェア開発における重要な指針です。
