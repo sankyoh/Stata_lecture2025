@@ -76,16 +76,12 @@ postfileを重複して動かすときに、「前に作ったファイル名何
 * postfile の最小例：平均とSDを1行だけ保存する
 *----------------------------------------------
 
-clear
-set obs 100
-gen x = rnormal(10, 2)
 
 * 1) ハンドル（書き込み用の仮の名前）とファイル名を作る
 tempname holder
 tempfile results
 
 * 2) 結果用データセットを開く（列名と型を定義）
-*    using results ＝ results.dta に保存する、という意味
 postfile `holder' ///
     str20 item ///　1つめの格納先変数 item(文字列)
     double mean /// 2つめの格納先変数 mean(double型の実数)
@@ -93,7 +89,7 @@ postfile `holder' ///
     using `results', replace
 
 * 3) 計算（ここでは summarize の r() を利用）
-sysuse auto
+sysuse auto, clear
 
 local vars price length weight mpg
 foreach x of local vars {
@@ -102,7 +98,7 @@ foreach x of local vars {
   local s = r(sd)
 
   * 4) 1行書き込む（post）
-  post `holder' ("x") (`m') (`s')
+  post `holder' ("`x'") (`m') (`s')
 
 }
 
