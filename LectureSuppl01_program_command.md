@@ -55,7 +55,8 @@ adoファイル化の詳細は、[LectureSuppl02_Adofile.md](LectureSuppl02_Adof
 「データの行数と変数数を表示する」コマンドを作ってみます。
 
 ~~~stata
-* 自作コマンドの定義
+* 自作コマンドの定義/同名のコマンドが既存だとエラーになるので、一旦cap program dropする。
+cap program drop show_dims
 program define show_dims
     version 18.0
 
