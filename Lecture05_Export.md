@@ -107,10 +107,11 @@ return list
 * 重要：欠損補完はこの回では行わない（e(N)を確認する）
 ****************************************************
 
-local read_file  "$CLEAN\df01_clean.dta"
+local read_file  "$CLEAN/df01_clean.dta"
 local write_file "$OUT/session5_models_results.xlsx"
 
-use "read_file`'", clear
+di "`read_file'"
+use "`read_file'", clear
 
 capture log close
 log using "$LOG/session4_models.log", text replace
@@ -132,7 +133,7 @@ local outv_bin  cv_event
 local covars age bmi sbp fev1 smk htn_tx fhx_cvd af ckd ra copd
 
 *--------------------------------------------------*
-* 2) postfileの準備：結果を貯める“結果用データセット”を作る
+* 2) postfileの準備：結果を貯める"結果用データセット"を作る
 *--------------------------------------------------*
 tempname holder
 tempfile results
@@ -141,11 +142,11 @@ tempfile results
 postfile `holder' ///
     str20 glm ///
     str20 estimate ///
-    str10 N
+    str10 N ///
     str40 value_ci ///
     str10 p_value ///
     str1  blank ///
-    str10 adj_N
+    str10 adj_N ///
     str40 adj_value_ci ///
     str10 adj_p_value ///
     using `results', replace
@@ -182,7 +183,7 @@ local adj_val = trim(string(`est',"%9.2f")) + " (" + trim(string(`lb',"%9.2f")) 
 local adj_p   = cond(`pv'<0.001, "<0.001", trim(string(`pv',"%6.3f")))
 
 * 1行としてpost（指定の空列 blank は "" を入れる）
-post H ("regress") ("N") ("coefficient") ("`crude_val'") ("`crude_p'") ("") ("adj_N") ("`adj_val'") ("`adj_p'")
+post `holder' ("regress") ("coefficient") ("`N'") ("`crude_val'") ("`crude_p'") ("") ("`adj_N'") ("`adj_val'") ("`adj_p'")
 
 *--------------------------------------------------*
 * 4) ロジスティック回帰：アウトカム=cv_event（OR）
@@ -216,7 +217,7 @@ local adj_val = trim(string(`est',"%9.2f")) + " (" + trim(string(`lb',"%9.2f")) 
 local adj_p   = cond(`pv'<0.001, "<0.001", trim(string(`pv',"%6.3f")))
 
 * 1行としてpost（指定の空列 blank は "" を入れる）
-post H ("logistic") ("N") ("coefficient") ("`crude_val'") ("`crude_p'") ("") ("adj_N") ("`adj_val'") ("`adj_p'")
+post `holder' ("logistic") ("Odds Ratio") ("`N'") ("`crude_val'") ("`crude_p'") ("") ("`adj_N'") ("`adj_val'") ("`adj_p'")
 
 *--------------------------------------------------*
 * 5) 修正Poisson回帰：アウトカム=cv_event（RR）
@@ -251,7 +252,7 @@ local adj_val = trim(string(`est',"%9.2f")) + " (" + trim(string(`lb',"%9.2f")) 
 local adj_p   = cond(`pv'<0.001, "<0.001", trim(string(`pv',"%6.3f")))
 
 * 1行としてpost（指定の空列 blank は "" を入れる）
-post H ("logistic") ("N") ("coefficient") ("`crude_val'") ("`crude_p'") ("") ("adj_N") ("`adj_val'") ("`adj_p'")
+post `holder' ("modified Poison") ("Risk Ratio") ("`N'") ("`crude_val'") ("`crude_p'") ("") ("`adj_N'") ("`adj_val'") ("`adj_p'")
 
 *--------------------------------------------------*
 * 7) postfileを閉じて、Excelへ出力
@@ -260,19 +261,21 @@ postclose `holder'
 
 use `results', clear
 
-* 列名を“指定の見た目”に寄せる（Excelのヘッダをvarlabelにする）
+* 列名を"指定の見た目"に寄せる（Excelのヘッダをvarlabelにする）
 label var glm         "glm"
 label var estimate    "estimate"
+label var N            "N for crude model"     
 label var value_ci    "value (95%CI)"
 label var p_value     "p-value"
-label var blank       ""                       // 空列の見出し（空にする）
+label var blank       "　"                       // 空列の見出し（空にする）
+label var adj_N        "N for adjusted model"
 label var adj_value_ci "adjusted value (95%CI)"
 label var adj_p_value  "p-value"
 
 * Excel出力：ヘッダはvarlabelを使う
 export excel using "`write_file'", firstrow(varlabels) replace
 
-di "=== Results exported to: `xlsx' ==="
+di "=== Results exported to: Excel file ==="
 
 log close
 ~~~
