@@ -42,14 +42,6 @@ adoファイル化の詳細は、[LectureSuppl02_Adofile.md](LectureSuppl02_Adof
 
 ---
 
-## `program define` の周辺でよく見る3つ（ついでに）
-
-- `program define ...`：コマンド定義の開始
-- `version 19.0`：このコマンドは Stata 19 の挙動で動く、と固定（再現性）
-- `end`：定義の終わり
-
----
-
 ## 簡単な具体例
 
 「データの行数と変数数を表示する」コマンドを作ってみます。
@@ -87,8 +79,30 @@ show_dims
 
 ---
 
+## show_dimsの有効範囲（スコープ）
+
+show_dims みたいに doファイル内で program define したコマンドの「有効範囲（スコープ）」は、基本的に **その Stata セッション（起動してから終了するまで）**です。
+
+### 1) どこで使える？
+いったん program define show_dims ... end が実行されると、
+その時点以降は
+
+- コマンドウィンドウ
+- 別の do ファイル
+- do で呼んだ下位 do
+
+など、同じ Stata セッション内ならどこでも show_dims を実行できます。
+
+### 2) いつまで使える？
+
+Stataを終了するまで有効です。
+Stataを閉じて再起動すると、doファイルで定義しただけの show_dims は 消えます（再定義が必要）。
+
+---
+
 ## まとめ
 
 - `program` は **Stataで自分のコマンドを作る機能**
 - `program define 名前 ... end` で定義する
+- スコープに注意（Stataを終わらせると、再度定義しないと使えない）
 - `.ado` に入れて PERSONAL に置くと、どのプロジェクトでもそのコマンドが使える
