@@ -71,11 +71,16 @@ end
 * 使ってみる
 sysuse auto, clear
 show_dims
+
+* 違うデータセットでも使ってみる
+webuse lbw, clear
+show_dims
 ~~~
 
 実行すると例として：
 
-- `N = 74, variables = 12`
+- N = 74, variables = 12
+- N = 189, variables = 11
 
 のように表示されます。
 
