@@ -28,6 +28,7 @@ end
 ---
 
 ## adoファイルとの関係
+adoファイル化の詳細は、[LectureSuppl02_Adofile.md](LectureSuppl02_Adofile.md)を参照。
 
 - `make_table1.ado` の中に `program define make_table1 ... end` が書かれている
 - そのファイルを PERSONAL などに置くと
@@ -44,7 +45,7 @@ end
 ## `program define` の周辺でよく見る3つ（ついでに）
 
 - `program define ...`：コマンド定義の開始
-- `version 18.0`：このコマンドは Stata 18 の挙動で動く、と固定（再現性）
+- `version 19.0`：このコマンドは Stata 19 の挙動で動く、と固定（再現性）
 - `end`：定義の終わり
 
 ---
@@ -61,7 +62,7 @@ program define show_dims
     quietly count
     local N = r(N)
 
-    describe
+    quietly describe
     local K = r(k)
 
     di as text "N = `N', variables = `K'"
