@@ -20,4 +20,11 @@ do "$DO/02_clean.do"
 do "$DO/03_table1.do"
 
 // make_table1.adoを利用したバージョン
+
 do "$DO/03_table1suppl.do"
+
+* 4) GLM analysis (regress, logistic, modified poisson)
+do "$DO/04_models_glm.do"
+
+* 5) Results: Export to Excel
+do "$DO/05_models_glm_export.do"
