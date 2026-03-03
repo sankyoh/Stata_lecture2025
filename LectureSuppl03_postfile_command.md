@@ -32,7 +32,7 @@
 
 ここではハンドル名を、
 ```
-tempname `holder'
+tempname holder
 ```
 で定義しました。
 tempnameで定義しておくと、名前の重複が発生しないので、postfileを使い分けるときに便利です。
