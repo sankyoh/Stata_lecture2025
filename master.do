@@ -28,3 +28,6 @@ do "$DO/04_models_glm.do"
 
 * 5) Results: Export to Excel
 do "$DO/05_models_glm_export.do"
+
+* 6) Results: Export to Excel, compact
+do "$DO/06_models_glm_export_compact.do"
