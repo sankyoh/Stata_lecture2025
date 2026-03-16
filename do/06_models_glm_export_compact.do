@@ -71,8 +71,6 @@ local adj_val "`r(p)'"
 * 1行としてpost（指定の空列 blank は "" を入れる）
 post `holder' ("regress") ("coefficient") ("`N'") ("`crude_val'") ("`crude_p'") ("") ("`adj_N'") ("`adj_val'") ("`adj_p'")
 
-exit
-
 *--------------------------------------------------*
 * 4) ロジスティック回帰：アウトカム=cv_event（OR）
 *--------------------------------------------------*
@@ -80,29 +78,17 @@ di "---- Logistic regression (Outcome: cv_event) ----"
 
 * 粗解析（OR）
 logistic `outv_bin' `expv' // ***** 異なる解析をする場合にはここを変更する *****
-local N = string(`e(N)')
-
-lincom `expv', eform
-local est = r(estimate)
-local lb  = r(lb)
-local ub  = r(ub)
-local pv  = r(p)
-
-local crude_val = trim(string(`est',"%9.2f")) + " (" + trim(string(`lb',"%9.2f")) + ", " + trim(string(`ub',"%9.2f")) + ")"
-local crude_p   = cond(`pv'<0.001, "<0.001", trim(string(`pv',"%6.3f")))
+collect_result, expv(`expv') eform
+local crude_N   "`r(Nstr)'"
+local crude_val "`r(val)'"
+local crude_val "`r(p)'"
 
 * 調整解析
 logistic `outv_bin' `expv' `covars' // ***** 異なる解析をする場合にはここを変更する *****
-local adj_N = string(`e(N)')
-
-lincom `expv', eform
-local est = r(estimate)
-local lb  = r(lb)
-local ub  = r(ub)
-local pv  = r(p)
-
-local adj_val = trim(string(`est',"%9.2f")) + " (" + trim(string(`lb',"%9.2f")) + ", " + trim(string(`ub',"%9.2f")) + ")"
-local adj_p   = cond(`pv'<0.001, "<0.001", trim(string(`pv',"%6.3f")))
+collect_result, expv(`expv') eform
+local adj_N   "`r(Nstr)'"
+local adj_val "`r(val)'"
+local adj_val "`r(p)'"
 
 * 1行としてpost（指定の空列 blank は "" を入れる）
 post `holder' ("logistic") ("Odds Ratio") ("`N'") ("`crude_val'") ("`crude_p'") ("") ("`adj_N'") ("`adj_val'") ("`adj_p'")
@@ -115,29 +101,17 @@ di "---- Modified Poisson regression (Outcome: cv_event) ----"
 
 * 粗解析（RR）
 poisson `outv_bin' `expv', vce(robust) irr // ***** 異なる解析をする場合にはここを変更する *****
-local N = string(`e(N)')
-
-lincom `expv', eform
-local est = r(estimate)
-local lb  = r(lb)
-local ub  = r(ub)
-local pv  = r(p)
-
-local crude_val = trim(string(`est',"%9.2f")) + " (" + trim(string(`lb',"%9.2f")) + ", " + trim(string(`ub',"%9.2f")) + ")"
-local crude_p   = cond(`pv'<0.001, "<0.001", trim(string(`pv',"%6.3f")))
+collect_result, expv(`expv') eform
+local crude_N   "`r(Nstr)'"
+local crude_val "`r(val)'"
+local crude_val "`r(p)'"
 
 * 調整解析
 poisson `outv_bin' `expv' `covars', vce(robust) irr // ***** 異なる解析をする場合にはここを変更する *****
-local adj_N = string(`e(N)')
-
-lincom `expv', eform
-local est = r(estimate)
-local lb  = r(lb)
-local ub  = r(ub)
-local pv  = r(p)
-
-local adj_val = trim(string(`est',"%9.2f")) + " (" + trim(string(`lb',"%9.2f")) + ", " + trim(string(`ub',"%9.2f")) + ")"
-local adj_p   = cond(`pv'<0.001, "<0.001", trim(string(`pv',"%6.3f")))
+collect_result, expv(`expv') eform
+local adj_N   "`r(Nstr)'"
+local adj_val "`r(val)'"
+local adj_val "`r(p)'"
 
 * 1行としてpost（指定の空列 blank は "" を入れる）
 post `holder' ("modified Poison") ("Risk Ratio") ("`N'") ("`crude_val'") ("`crude_p'") ("") ("`adj_N'") ("`adj_val'") ("`adj_p'")
