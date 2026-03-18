@@ -69,7 +69,7 @@ local adj_val "`r(val)'"
 local adj_p "`r(p)'"
 
 * 1行としてpost（指定の空列 blank は "" を入れる）
-post `holder' ("regress") ("coefficient") ("`N'") ("`crude_val'") ("`crude_p'") ("") ("`adj_N'") ("`adj_val'") ("`adj_p'")
+post `holder' ("regress") ("coefficient") ("`crude_N'") ("`crude_val'") ("`crude_p'") ("") ("`adj_N'") ("`adj_val'") ("`adj_p'")
 
 *--------------------------------------------------*
 * 4) ロジスティック回帰：アウトカム=cv_event（OR）
@@ -91,7 +91,7 @@ local adj_val "`r(val)'"
 local adj_p "`r(p)'"
 
 * 1行としてpost（指定の空列 blank は "" を入れる）
-post `holder' ("logistic") ("Odds Ratio") ("`N'") ("`crude_val'") ("`crude_p'") ("") ("`adj_N'") ("`adj_val'") ("`adj_p'")
+post `holder' ("logistic") ("Odds Ratio") ("`crude_N'") ("`crude_val'") ("`crude_p'") ("") ("`adj_N'") ("`adj_val'") ("`adj_p'")
 
 *--------------------------------------------------*
 * 5) 修正Poisson回帰：アウトカム=cv_event（RR）
@@ -114,7 +114,7 @@ local adj_val "`r(val)'"
 local adj_p "`r(p)'"
 
 * 1行としてpost（指定の空列 blank は "" を入れる）
-post `holder' ("modified Poison") ("Risk Ratio") ("`N'") ("`crude_val'") ("`crude_p'") ("") ("`adj_N'") ("`adj_val'") ("`adj_p'")
+post `holder' ("modified Poison") ("Risk Ratio") ("`crude_N'") ("`crude_val'") ("`crude_p'") ("") ("`adj_N'") ("`adj_val'") ("`adj_p'")
 
 *--------------------------------------------------*
 * 7) postfileを閉じて、Excelへ出力
