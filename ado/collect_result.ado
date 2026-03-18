@@ -16,7 +16,7 @@ program define collect_result, rclass
         r(p)    : p値を整形した文字列
     */
 
-    syntax, EXPv(name) [EFORM]
+    syntax, EXPv(string) [EFORM]
 
     * N
     local Nstr = trim(string(e(N), "%9.0f"))
