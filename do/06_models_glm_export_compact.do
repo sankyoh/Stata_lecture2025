@@ -59,14 +59,14 @@ regress `outv_cont' `expv' // ***** 異なる解析をする場合にはここ�
 collect_result, expv(`expv')
 local crude_N   "`r(Nstr)'"
 local crude_val "`r(val)'"
-local crude_val "`r(p)'"
+local crude_p "`r(p)'"
 
 * 調整解析
 regress `outv_cont' `expv' `covars' // ***** 異なる解析をする場合にはここを変更する *****
 collect_result, expv(`expv')
 local adj_N   "`r(Nstr)'"
 local adj_val "`r(val)'"
-local adj_val "`r(p)'"
+local adj_p "`r(p)'"
 
 * 1行としてpost（指定の空列 blank は "" を入れる）
 post `holder' ("regress") ("coefficient") ("`N'") ("`crude_val'") ("`crude_p'") ("") ("`adj_N'") ("`adj_val'") ("`adj_p'")
@@ -81,14 +81,14 @@ logistic `outv_bin' `expv' // ***** 異なる解析をする場合にはここ�
 collect_result, expv(`expv') eform
 local crude_N   "`r(Nstr)'"
 local crude_val "`r(val)'"
-local crude_val "`r(p)'"
+local crude_p "`r(p)'"
 
 * 調整解析
 logistic `outv_bin' `expv' `covars' // ***** 異なる解析をする場合にはここを変更する *****
 collect_result, expv(`expv') eform
 local adj_N   "`r(Nstr)'"
 local adj_val "`r(val)'"
-local adj_val "`r(p)'"
+local adj_p "`r(p)'"
 
 * 1行としてpost（指定の空列 blank は "" を入れる）
 post `holder' ("logistic") ("Odds Ratio") ("`N'") ("`crude_val'") ("`crude_p'") ("") ("`adj_N'") ("`adj_val'") ("`adj_p'")
@@ -104,14 +104,14 @@ poisson `outv_bin' `expv', vce(robust) irr // ***** 異なる解析をする場�
 collect_result, expv(`expv') eform
 local crude_N   "`r(Nstr)'"
 local crude_val "`r(val)'"
-local crude_val "`r(p)'"
+local crude_p "`r(p)'"
 
 * 調整解析
 poisson `outv_bin' `expv' `covars', vce(robust) irr // ***** 異なる解析をする場合にはここを変更する *****
 collect_result, expv(`expv') eform
 local adj_N   "`r(Nstr)'"
 local adj_val "`r(val)'"
-local adj_val "`r(p)'"
+local adj_p "`r(p)'"
 
 * 1行としてpost（指定の空列 blank は "" を入れる）
 post `holder' ("modified Poison") ("Risk Ratio") ("`N'") ("`crude_val'") ("`crude_p'") ("") ("`adj_N'") ("`adj_val'") ("`adj_p'")
